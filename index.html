@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Shashwat Poudel</title>
+    <link
+      rel="preload"
+      href="assets/fonts/FiraCodeNerdFont-Regular.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="wrap">
+      <header class="header">
+        <h1 class="name">Shashwat Poudel</h1>
+        <p class="tagline">Backend Practitioner. Sucker for Vim Motions</p>
+        <div class="resume">
+          <a
+            id="resumeBtn"
+            class="btn"
+            href="./resume.pdf"
+            target="_blank"
+            rel="noopener"
+            aria-describedby="resumeTip"
+            >Resume</a
+          >
+          <span id="resumeTip" class="tip"
+            >Click to view · Alt/Option-click to download</span
+          >
+        </div>
+        <hr class="rule-strong" />
+      </header>
+
+      <section>
+        <h2 class="section-title">Projects</h2>
+        <ul id="projectsList" class="list collapsed">
+          <li>
+            <a href="https://github.com/Shashwat-pd/server" class="item"
+              ><span class="mono">HTTP Server</span> — spins up a raw TCP
+              listener</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://github.com/Shashwat-pd/agentic-extension"
+              class="item"
+              ><span class="mono">Agentic Extension</span> — Wtf is an Agent
+              anyway?</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://github.com/Shashwat-pd/inventory-managment"
+              class="item"
+              ><span class="mono">Sales Forecasting Model</span> — ARIMA / STL
+              implementation for sales forecasting.</a
+            >
+          </li>
+          <li class="more">
+            <a href="https://github.com/Shashwat-pd/photobooth" class="item"
+              ><span class="mono">Photobooth</span> — Intimate date when tight
+              on budget</a
+            >
+          </li>
+          <li class="more">
+            <a href="#" class="item"
+              ><span class="mono">Gator</span> —TypeScript CLI for collecting,
+              following, and periodically aggregating RSS feeds.</a
+            >
+          </li>
+        </ul>
+        <button
+          class="more-toggle"
+          data-target="projectsList"
+          aria-expanded="false"
+        >
+          View more
+        </button>
+      </section>
+
+      <section>
+        <h2 class="section-title">
+          Writeups
+          <button type="button" class="info" title="Legend">ℹ️</button>
+          <span class="legend-inline">⚙️ Technical · ☕ Casual</span>
+        </h2>
+        <ul id="writeupsList" class="list writeups collapsed">
+          <li>
+            <a href="writeups/public-diary.html" class="item casual"
+              ><span class="mono">Public Diary</span> — I saw a public diary.</a
+            >
+          </li>
+          <li>
+            <a href="writeups/alt-ego.html" class="item casual"
+              ><span class="mono">The alt ego</span> — Talking to my
+              passport.</a
+            >
+          </li>
+          <li>
+            <a href="#" class="item casual"
+              ><span class="mono">Post title three</span> — short blurb</a
+            >
+          </li>
+          <li class="more">
+            <a href="#" class="item casual"
+              ><span class="mono">Post title four</span> — short blurb</a
+            >
+          </li>
+          <li class="more">
+            <a href="#" class="item tech"
+              ><span class="mono">Post title five</span> — short blurb</a
+            >
+          </li>
+        </ul>
+        <button
+          class="more-toggle"
+          data-target="writeupsList"
+          aria-expanded="false"
+        >
+          View more
+        </button>
+      </section>
+
+      <figure class="xkcd">
+        <img
+          src="assets/images/brain_upload.png"
+          alt="xkcd #1666: Brain Upload"
+        />
+        <figcaption>
+          “Brain Upload” by Randall Munroe — xkcd #1666 — https://xkcd.com/1666/
+          — CC BY-NC 2.5
+        </figcaption>
+      </figure>
+
+      <section>
+        <h2 class="section-title">Elsewhere</h2>
+        <ul class="links">
+          <li>
+            <a
+              href="https://github.com/shashwat-pd"
+              target="_blank"
+              rel="noopener"
+              >GitHub</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://www.linkedin.com/in/shashwat-poudel"
+              target="_blank"
+              rel="noopener"
+              >LinkedIn</a
+            >
+          </li>
+          <li>
+            <a href="https://x.com/USERNAME" target="_blank" rel="noopener"
+              >X</a
+            >
+          </li>
+          <li><a href="mailto:you@example.com">Email</a></li>
+        </ul>
+      </section>
+    </main>
+    <script>
+      (function () {
+        var btn = document.getElementById("resumeBtn");
+        var tip = document.getElementById("resumeTip");
+        if (!btn) return;
+        var file = btn.getAttribute("href");
+        var mqCoarse = window.matchMedia("(pointer: coarse)");
+
+        function setTipText() {
+          if (!tip) return;
+          tip.textContent = mqCoarse.matches
+            ? "Tap to view · Double-tap to download"
+            : "Click to view · Alt/Option-click to download";
+        }
+        setTipText();
+        if (mqCoarse.addEventListener)
+          mqCoarse.addEventListener("change", setTipText);
+        else if (mqCoarse.addListener) mqCoarse.addListener(setTipText);
+
+        function downloadFile() {
+          var a = document.createElement("a");
+          a.href = file;
+          a.download = "";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        }
+
+        var tapTimer = null;
+        btn.addEventListener("click", function (e) {
+          // Desktop/laptop: Alt/Option-click downloads.
+          if (!mqCoarse.matches && e.altKey) {
+            e.preventDefault();
+            downloadFile();
+            return;
+          }
+
+          // Touch devices: double-tap to download; single tap views.
+          if (mqCoarse.matches) {
+            e.preventDefault();
+            if (tapTimer) {
+              clearTimeout(tapTimer);
+              tapTimer = null;
+              downloadFile();
+            } else {
+              tapTimer = setTimeout(function () {
+                tapTimer = null;
+                // Open in the same tab for reliability on mobile.
+                window.location.href = file;
+              }, 220);
+            }
+          }
+        });
+
+        btn.addEventListener("keydown", function (e) {
+          var isActivate =
+            e.key === "Enter" || e.key === " " || e.code === "Space";
+          if (isActivate && e.altKey && !mqCoarse.matches) {
+            e.preventDefault();
+            downloadFile();
+          }
+        });
+      })();
+
+      // View more/less toggles for lists
+      (function () {
+        function toggleList(btn) {
+          var id = btn.getAttribute("data-target");
+          var list = document.getElementById(id);
+          if (!list) return;
+          var expanded = btn.getAttribute("aria-expanded") === "true";
+          list.classList.toggle("collapsed", expanded);
+          btn.setAttribute("aria-expanded", (!expanded).toString());
+          btn.textContent = expanded ? "View more" : "View less";
+        }
+        document.querySelectorAll(".more-toggle").forEach(function (b) {
+          b.addEventListener("click", function () {
+            toggleList(b);
+          });
+        });
+      })();
+
+      // Info tooltip for Writeups legend (hover/tap)
+      (function () {
+        var infoBtn = document.querySelector(".section-title .info");
+        var tip = document.getElementById("legendTip");
+        if (!infoBtn || !tip) return;
+        function closeTip() {
+          infoBtn.setAttribute("aria-expanded", "false");
+        }
+        infoBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var open = infoBtn.getAttribute("aria-expanded") === "true";
+          infoBtn.setAttribute("aria-expanded", (!open).toString());
+        });
+        document.addEventListener("click", function () {
+          closeTip();
+        });
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape") closeTip();
+        });
+      })();
+    </script>
+  </body>
+</html>

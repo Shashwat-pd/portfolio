@@ -1,0 +1,264 @@
+:root {
+  --bg: #fff;
+  --text: #111;
+  --muted: #666;
+  --line: #e6e6e6;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "FiraCode Nerd Font", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  line-height: 1.55;
+  text-rendering: optimizeLegibility;
+}
+
+.wrap { max-width: 760px; margin: 56px auto; padding: 0 20px; }
+
+@font-face {
+  font-family: "FiraCode Nerd Font";
+  src: url("assets/fonts/FiraCodeNerdFont-Regular.woff2") format("woff2"),
+       url("assets/fonts/FiraCodeNerdFont-Regular.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+.mono {
+  font-family: "FiraCode Nerd Font", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  letter-spacing: 0.01em;
+}
+
+.header { margin-bottom: 24px; }
+.name { margin: 0 0 2px; font-size: clamp(36px, 6vw, 60px); letter-spacing: -0.01em; }
+.tagline { margin: 0 0 2px; color: var(--muted); font-size: 0.95rem; }
+
+.resume { margin-top: 14px; display: inline-flex; flex-direction: column; align-items: flex-start; gap: 0; }
+.btn {
+  display: inline-block;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--bg), var(--bg)) padding-box,
+    conic-gradient(from var(--ang) at 50% 50%, #7c3aed, #06b6d4, #22c55e, #f59e0b, #ef4444, #7c3aed) border-box;
+  color: var(--text);
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  transition: background .15s ease, color .15s ease;
+  touch-action: manipulation; /* reduce delay + disable double-tap zoom */
+  position: relative;
+  animation: spin 8s linear infinite;
+}
+.btn::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  z-index: -1;
+  border-radius: 10px;
+  background: radial-gradient(60% 60% at 30% 30%, rgba(124,58,237,.25), transparent 60%),
+              radial-gradient(60% 60% at 70% 70%, rgba(6,182,212,.25), transparent 60%);
+  filter: blur(12px);
+  opacity: .6;
+}
+.btn:hover { background: var(--text); color: var(--bg); }
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px; height: 36px;
+  border: 1px solid var(--text);
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+  opacity: 0.75;
+  transition: background .15s ease, color .15s ease, opacity .15s ease;
+}
+.btn-icon:hover { background: var(--text); color: var(--bg); opacity: 1; }
+
+/* Tooltip-style hint next to Resume */
+.resume { position: relative; }
+.tip {
+  color: var(--muted);
+  font-size: 0.85rem;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity .15s ease, transform .15s ease;
+  pointer-events: none;
+  margin-top: 6px;
+}
+.resume:hover .tip,
+.resume:focus-within .tip { opacity: .9; transform: translateY(0); }
+
+.section-title {
+  margin: 24px 0 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-title .info {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--muted);
+  width: 20px; height: 20px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.section-title .info:focus { outline: 2px solid var(--text); outline-offset: 2px; }
+
+.section-title { position: relative; }
+.section-title .tooltip {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 6px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: var(--text);
+  font-size: 0.85rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,.06);
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity .12s ease, transform .12s ease;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.section-title:hover .tooltip,
+.section-title:focus-within .tooltip,
+.section-title .info[aria-expanded="true"] + .tooltip {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.section-title .legend-inline {
+  color: var(--muted);
+  font-size: 0.85rem;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity .12s ease, transform .12s ease;
+  pointer-events: none;
+}
+.section-title .info:hover + .legend-inline,
+.section-title .info:focus + .legend-inline {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.list { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--line); }
+.list li { border-bottom: 1px solid var(--line); }
+.list li a { display: block; padding: 10px 0; color: var(--text); text-decoration: none; }
+.list li a:hover { text-decoration: underline; }
+
+.links { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 12px 18px; }
+.links a { color: var(--text); text-decoration: none; border-bottom: 1px solid transparent; }
+.links a:hover { text-decoration: underline; }
+
+@media (max-width: 480px) {
+  .wrap { margin: 40px auto; padding: 0 16px; }
+  .resume .tip { opacity: .9; transform: translateY(0); }
+}
+
+/* Writeups icons (tech vs casual) */
+.writeups .item { position: relative; }
+.writeups .item::after {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 14px;
+  opacity: .75;
+  line-height: 1;
+}
+.writeups .item.tech::after { content: "⚙️"; }
+.writeups .item.casual::after { content: "☕"; }
+
+/* Collapsible lists */
+.list.collapsed li.more { display: none; }
+.more-toggle {
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: clamp(10px, 0.25em, 12px);
+  cursor: pointer;
+}
+.more-toggle:hover { text-decoration: underline; }
+
+/* Spinning conic gradient support */
+@property --ang {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes spin { to { --ang: 360deg; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn { animation: none; }
+}
+
+/* Legend */
+.legend {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  margin: 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+.legend .key { display: inline-flex; align-items: center; gap: 6px; margin-right: 14px; }
+
+/* XKCD figure */
+.xkcd { margin: 48px 0; }
+.xkcd img { display: block; max-width: 100%; width: 100%; height: auto; }
+.xkcd figcaption { color: var(--muted); font-size: 10px; margin-top: 6px; }
+
+/* Stronger rule after resume */
+.rule-strong { border: 0; border-top: 2px solid #d4d4d4; margin: 18px 0 8px; }
+
+/* Section spacing */
+main > section + section { margin-top: 28px; }
+
+/* Writeup page helpers */
+.back { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+.back:hover { text-decoration: underline; }
+.article .content { margin-top: 10px; }
+
+/* Content defaults for writeups */
+.article .content h2,
+.article .content h3,
+.article .content h4 { margin: 18px 0 6px; font-size: 1.05rem; }
+.article .content p { margin: 10px 0; }
+.article .content a { color: var(--text); text-decoration: underline; }
+.article .content blockquote {
+  margin: 12px 0;
+  padding: 6px 10px;
+  border-left: 3px solid var(--line);
+  color: var(--muted);
+  background: #fafafa;
+}
+.article .content code { background: #f5f5f5; padding: 0 3px; border-radius: 3px; }
+.article .content pre { background: #f8f8f8; border: 1px solid var(--line); border-radius: 6px; padding: 12px; overflow: auto; }
+.article .content pre code { background: transparent; padding: 0; }
+.article .content img { max-width: 100%; height: auto; display: block; }
+.article .content figure { margin: 14px 0; }
+.article .content figcaption { color: var(--muted); font-size: 0.8rem; margin-top: 6px; }

@@ -1,0 +1,63 @@
+
+  - Name: use exactly “Shashwat Poudel” for the header?
+  yes
+  - Tagline: keep exactly “sucker for vim motion, backend practioner”, or change to "sucker for vim motions, backend practitioner"? Please confirm
+  final wording.
+sucker for vim motions, backend practitioner
+  - Sections: one single-page with “Projects” and “Blogs” lists under the header/subtext?
+yes one pager
+  Resume
+
+  - Resume source: give a URL to your PDF, or should I link to ./resume.pdf in the repo?
+  ./resume.pdf
+  - Button behavior: open in a new tab only, or show both “View” and “Download” as two buttons?
+  how can we make it creative such that the user gets both option but also we don't overwhelm with two buttons. Cmd+Click to download?
+
+  Projects
+
+  - Provide items as: Title • one‑line blurb • link (repo or live).
+  I will change the link accordingly. Format: Title • one‑line blurb
+  - Any preferred order and must‑include projects?
+  I will do accordingly
+
+  Blogs
+
+  - Provide items as: Title • link.
+  Yes
+  - Or should I link to a single blog index (e.g., your Medium/Substack)?
+  No
+
+  Fonts & Icons
+
+  - Nerd Font: which family (e.g., “FiraCode Nerd Font”, “JetBrainsMono Nerd Font”)? If none, I’ll ship clean system fonts and omit icons.
+  FiraCode
+  - If you want Nerd Font icons, do you want me to:
+      - self‑host the font files in the repo, or
+      self-host
+      - assume the user has the Nerd Font installed locally (with graceful fallback)?
+      No
+
+  Design
+
+  - Palette: pure black on white with subtle grays for borders/links acceptable?
+  gray and black more than complete black and white. muted black
+  - Typography: large name, small muted tagline, compact lists; max width ~720–800px?
+  compact
+  - Links: simple underline on hover vs always underlined?
+  only on hover
+
+  Extras
+
+  - Social/contact links to include (GitHub, LinkedIn, X, email)?
+  all
+  - Favicon: skip, or minimal “SP” black/white?
+  No
+  - Any analytics or none?
+  None for now
+
+  Deployment
+
+  - Where will you host (GitHub Pages, Netlify, Vercel)? I’ll tailor the output and instructions.
+  GH Pages. But ignore everything about hosting right now.
+
+  Once I have these, I’ll scaffold a single index.html + styles.css (and link your resume).
