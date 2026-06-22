@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Saving Private Ryan, Substring Search in PSQL.</title>
+    <link
+      rel="preload"
+      href="../assets/fonts/FiraCodeNerdFont-Regular.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="../styles.css" />
+  </head>
+  <body>
+    <main class="wrap">
+      <nav><a class="back" href="../index.html">← Home</a></nav>
+      <article class="article">
+        <h1 class="name">Searching "Private Ryan", Substring Search in PSQL.</h1>
+        <div class="content">
+          <h3 id="to-list-rows-where-any-field-contains-the-search-query-as-a-substring">To list rows, where any field contains the <code>search query</code> as a substring.</h3>
+          <ul>
+            <li>We needed substring search across a huge transactions table. For context, one of our client's DB has nearly 30M rows in a single month's partition. This write-up walks through the thought process behind the implementation, the approaches we considered, and the tradeoffs between storage, query speed, and efficiency.</li>
+          </ul>
+          <p>I had never peeled a single layer below <code>SELECT .. FROM ..WHERE</code>. My weapon of choice initially was naïve <code>LIKE</code>, which worked just fine with my 10-row synthetically seeded <code>Orders</code> table for my fifth semester e-commerce project.</p>
+          <p><em>Side note: Ended up with <code>LIKE</code> anyways.</em></p>
+          <p>Initially, the table had an extra column <code>searchable</code> of type <code>tsvector</code> which was used to <code>tsquery</code> against the searched tokens. A <code>tsvector</code> value is a storage efficient, collection of <code>lexemes</code>, optimized for text search in PostgreSQL.</p>
+          <p>Example:</p>
+          <pre><code>SELECT to_tsvector(
+  'english',
+  'Chat, We cooked? Or Are we being cooked? AI is cooking? What is happening chat?'
+
+);
+
+----------OUTPUT-------------
+'ai':9 'chat':1,15 'cook':3,8,11 'happen':14</code></pre>
+          <p>Here's what happened:</p>
+          <ul>
+            <li>Deduplication: <code>chat</code>, <code>cook</code> was only stored once</li>
+            <li>Lexemes were normalized to merge different variants of the same word: <code>cooked</code> and <code>cooking</code> in this case.</li>
+            <li>Stop words like <code>Or</code>, <code>Are</code>, <code>Is</code> were removed.</li>
+          </ul>
+          <p><code>tsvector</code> operator is a hugely celebrated feature for text search because with proper indexing, searching even in huge documents becomes sufficiently fast. If your users frequently look for the token 'shake' in Shakespeare's novels, then wohoo, there you go, but our users searched with substring like <code>05067</code> in fields that looked like <code>ESW UPI-7175926-050674899-CTZNNPKA K94210543</code></p>
+          <p>here's what <code>tsvector</code> provides for cases like this</p>
+          <pre><code>SELECT to_tsvector(
+  'english',
+  'ESW UPI-7175926-050674899-CTZNNPKA K94210543'
+);
+---
+'-050674899':4 '-7175926':3 'ctznnpka':5 'esw':1 'k94210543':6 'upi':2</code></pre>
+          <p>To get any relevant results with <code>tsquery</code> you had to search with a block of code (like <code>k94210543</code>). This approach even with the smartest tokenization, was quickly deemed unhelpful and had to be refactored for substring matching. Oh <code>LIKE</code>, I am coming for you.</p>
+          <h3 id="how-does-like-work">How does <code>LIKE</code> work?</h3>
+          <p>Conceptually, PostgreSQL’s <code>LIKE</code> implementation scans the input string and pattern using separate pointers. Literal characters are compared directly, <code>_</code> advances by one character, and <code>%</code> triggers scanning and recursive attempts against the remaining pattern. My grandpa walked faster than this.</p>
+          <p>With my then knowledge, I would have written something like,</p>
+          <p><code>.... WHERE description like '%search_query%' OR field like '%search_query%' </code></p>
+          <p>So simple, woof, am I a genius? Dunning Kruger can whoop my ass, I assumed my seniors never thought of it.</p>
+          <h2 id="stumbling-upon-pg_trgm-the-sauce">Stumbling upon <code>pg_trgm</code> (The sauce)</h2>
+          <p><code>LIKE</code> was never the problem, the bottleneck was what came in and around it, quite literally, I am talking about the inputs. With our previous query, the inputs were strings that had to be matched with two pointers approach, but what if we change the input as well as what it is matched against as well?</p>
+          <p>Enter trigram, a group of three consecutive characters taken from a string. Here's an example:</p>
+          <pre><code>select show_trgm('Chat, We cooked? Or Are we being cooked? AI is cooking? What is happending chat?');
+
+---OUTPUT---
+
+{"  a","  b","  c","  h","  i","  o","  w"," ai"," ar"," be"," ch"," co"," ha"," is"," or"," we"," wh","ai ",app,are,"at ",bei,cha,coo,din,"ed ",ein,end,hap,hat,ing,"is ",ked,kin,ndi,"ng ",oke,oki,ook,"or ",pen,ppe,"re ","we ",wha}</code></pre>
+          <p>As evident, with faster searching comes nx storage requirement.</p>
+          <p>Guess, which operator trigrams support for text searching? No, don't skip ahead, take a moment, wait, take one more second, ummmmm, yup!! the old, cute <code>LIKE</code> operator. But, this time it came with trigram around it. Hold on, <code>LIKE</code> is not done yet, the comeback is stronger than the setbacks.</p>
+          <p>Now, I had a presentable strategy for the refactor, use <code>pg_trgm</code> with <code>GiST</code> index. Not much, but honest work. Anyways, with my trust-me-bro benchmark, I concluded 3GB of index for 15M rows to get substring matching in reasonable time was a no-brainer. So, I started bringing the refactor in the application layer, can't UAT with <code>explain analyze</code>, can we?</p>
+          <h2 id="the-climax-throwing-away-the-sauce">The climax (Throwing away the sauce)</h2>
+          <p>To get to this point, I had read enough PostgreSQL documentation and relevant articles to understand the internals of indexing. So, while bringing my refactor to the application layer, I (with great help of my senior) realized that all the queries to the table had filters that drastically decreased the scope of the search. For example, a transaction is always scoped to the source, type of it, so naturally only transactions from that scope was a relevant result for the user.</p>
+          <p>If you have tried devising an indexing strategy ever, you know this is a perfect opportunity for a B-Tree compound index to shine. My trust-me-bro benchmarks showed a 10x faster query results, with our newest, super-affordable index. Now coming back to our search, something weird started happening that I couldn't get my head around, the planner stopped using our trigram index.</p>
+          <p>I grew up in a household where shampoo bottles were refilled with water, so my heart shed a tear when my 3GB per 15M row index was deemed useless by the planner. Ouch!! still hurts.</p>
+          <p>The query planner, brought me back to square one, because it applied <code>B-tree</code> index scan and used <code>LIKE '%query%'</code> predicate as a filter over those candidate rows instead of using the trigram index. It did so because the estimated cost to</p>
+          <ul>
+            <li>first, scan the index,</li>
+            <li>then, combine on other predicates to filter,</li>
+            <li>after that, fetch those rows surpassed the benefit of faster lookup. In other words, the <code>B-tree</code> index didn't help for substring search but it could cheaply find the small set of rows matching other fields. After that, applying <code>LIKE</code> as a filter was cheap enough.</li>
+          </ul>
+          <p>Now, even without the trigram index, my <code>LIKE</code> backed search runs faster than my grandpa who is on a wheelchair with two rocket boosters, all because it has a strong <code>B-Tree</code> companion which does all the heavy lifting.</p>
+          <p>/Happy Engineering!!</p>
+          <pre><code>select count(id) from transactions;
+  count
+---------
+ 3515497</code></pre>
+          <pre><code>EXPLAIN ANALYZE
+SELECT *
+FROM transactions
+WHERE field_one = 'SRC_R2_L1_P1'
+  AND field_two = 3
+  AND description LIKE '%' || '09976' || '%';
+
+  ---
+  .
+  .
+  .
+  Index Scan using transactions_2026_05_fields_idx on transactions_2026_05
+  .
+  .
+
+
+ Planning Time: 1.207 ms
+ Execution Time: 0.155 ms</code></pre>
+        </div>
+      </article>
+    </main>
+  </body>
+</html>
