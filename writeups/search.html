@@ -19,87 +19,174 @@
       <article class="article">
         <h1 class="name">Searching "Private Ryan", Substring Search in PSQL.</h1>
         <div class="content">
-          <h3 id="to-list-rows-where-any-field-contains-the-search-query-as-a-substring">To list rows, where any field contains the <code>search query</code> as a substring.</h3>
-          <ul>
-            <li>We needed substring search across a huge transactions table. For context, one of our client's DB has nearly 30M rows in a single month's partition. This write-up walks through the thought process behind the implementation, the approaches we considered, and the tradeoffs between storage, query speed, and efficiency.</li>
-          </ul>
-          <p>I had never peeled a single layer below <code>SELECT .. FROM ..WHERE</code>. My weapon of choice initially was naïve <code>LIKE</code>, which worked just fine with my 10-row synthetically seeded <code>Orders</code> table for my fifth semester e-commerce project.</p>
-          <p><em>Side note: Ended up with <code>LIKE</code> anyways.</em></p>
-          <p>Initially, the table had an extra column <code>searchable</code> of type <code>tsvector</code> which was used to <code>tsquery</code> against the searched tokens. A <code>tsvector</code> value is a storage efficient, collection of <code>lexemes</code>, optimized for text search in PostgreSQL.</p>
-          <p>Example:</p>
-          <pre><code>SELECT to_tsvector(
-  'english',
-  'Chat, We cooked? Or Are we being cooked? AI is cooking? What is happening chat?'
+<h3 id="to-list-rows-where-any-field-contains-the-search-query-as-a-substring">To list rows, where any field contains the <code>search query</code> as a substring.</h3>
+<ul>
+<li>We needed substring search across a huge transactions table. For context, one of our client's DB has nearly 80M rows in a single month's partition. This write-up walks through the thought process behind the implementation, the approaches we considered, and the tradeoffs between storage, query speed, and efficiency.</li>
+</ul>
+<p>My experience with SQL was mostly around DML, from the application layer with huge abstractions of ORM. I had hardly peeled a single layer below <code>SELECT .. FROM .. WHERE</code>. My weapon of choice initially was naïve <code>LIKE</code>, which worked just fine with my 10-row synthetically seeded <code>Orders</code> table for my fifth semester e-commerce project.</p>
+<p><em>Side note: Ended up with <code>LIKE</code> anyways.</em></p>
+<p>Initially, the table had an extra column <code>searchable</code> of type <code>tsvector</code> which was used to query against the searched tokens with <code>tsquery</code>. A <code>tsvector</code> value is a normalized, storage efficient, collection of <code>lexemes</code>, optimized for text search in PostgreSQL.</p>
+<p>Example:</p>
+<pre><code>SELECT to_tsvector(
+  &#39;english&#39;,
+  &#39;Chat, We cooked? Or Are we being cooked? AI is cooking? What is happening chat?&#39;
 
 );
 
 ----------OUTPUT-------------
-'ai':9 'chat':1,15 'cook':3,8,11 'happen':14</code></pre>
-          <p>Here's what happened:</p>
-          <ul>
-            <li>Deduplication: <code>chat</code>, <code>cook</code> was only stored once</li>
-            <li>Lexemes were normalized to merge different variants of the same word: <code>cooked</code> and <code>cooking</code> in this case.</li>
-            <li>Stop words like <code>Or</code>, <code>Are</code>, <code>Is</code> were removed.</li>
-          </ul>
-          <p><code>tsvector</code> operator is a hugely celebrated feature for text search because with proper indexing, searching even in huge documents becomes sufficiently fast. If your users frequently look for the token 'shake' in Shakespeare's novels, then wohoo, there you go, but our users searched with substring like <code>05067</code> in fields that looked like <code>ESW UPI-7175926-050674899-CTZNNPKA K94210543</code></p>
-          <p>here's what <code>tsvector</code> provides for cases like this</p>
-          <pre><code>SELECT to_tsvector(
-  'english',
-  'ESW UPI-7175926-050674899-CTZNNPKA K94210543'
+&#39;ai&#39;:9 &#39;chat&#39;:1,15 &#39;cook&#39;:3,8,11 &#39;happen&#39;:14</code></pre>
+<p>Here's what happened:</p>
+<ul>
+<li>Deduplication: <code>chat</code>, <code>cook</code> was only stored once</li>
+<li>Lexemes were normalized to merge different variants of the same word: <code>cooked</code> and <code>cooking</code> in this case.</li>
+<li>Stop words like <code>Or</code>, <code>Are</code>, <code>Is</code> were removed.</li>
+</ul>
+<p><code>tsvector</code> operator is a hugely celebrated feature for text search because with proper indexing, searching even in huge documents becomes sufficiently fast. If your users frequently look for the token 'shake' in Shakespeare's novels, then wohoo, there you go, but our users searched with substrings like <code>05067</code> in fields that looked like <code>PSW UPI-7175926-050674899-CTZNNPKA K94210543</code></p>
+<p>here's what <code>tsvector</code> provides for cases like this</p>
+<pre><code>SELECT to_tsvector(
+  &#39;english&#39;,
+  &#39;PSW UPI-7175926-050674899-CTZNNPKA K94210543&#39;
 );
 ---
-'-050674899':4 '-7175926':3 'ctznnpka':5 'esw':1 'k94210543':6 'upi':2</code></pre>
-          <p>To get any relevant results with <code>tsquery</code> you had to search with a block of code (like <code>k94210543</code>). This approach even with the smartest tokenization, was quickly deemed unhelpful and had to be refactored for substring matching. Oh <code>LIKE</code>, I am coming for you.</p>
-          <h3 id="how-does-like-work">How does <code>LIKE</code> work?</h3>
-          <p>Conceptually, PostgreSQL’s <code>LIKE</code> implementation scans the input string and pattern using separate pointers. Literal characters are compared directly, <code>_</code> advances by one character, and <code>%</code> triggers scanning and recursive attempts against the remaining pattern. My grandpa walked faster than this.</p>
-          <p>With my then knowledge, I would have written something like,</p>
-          <p><code>.... WHERE description like '%search_query%' OR field like '%search_query%' </code></p>
-          <p>So simple, woof, am I a genius? Dunning Kruger can whoop my ass, I assumed my seniors never thought of it.</p>
-          <h2 id="stumbling-upon-pg_trgm-the-sauce">Stumbling upon <code>pg_trgm</code> (The sauce)</h2>
-          <p><code>LIKE</code> was never the problem, the bottleneck was what came in and around it, quite literally, I am talking about the inputs. With our previous query, the inputs were strings that had to be matched with two pointers approach, but what if we change the input as well as what it is matched against as well?</p>
-          <p>Enter trigram, a group of three consecutive characters taken from a string. Here's an example:</p>
-          <pre><code>select show_trgm('Chat, We cooked? Or Are we being cooked? AI is cooking? What is happending chat?');
+&#39;-050674899&#39;:4 &#39;-7175926&#39;:3 &#39;ctznnpka&#39;:5 &#39;psw&#39;:1 &#39;k94210543&#39;:6 &#39;upi&#39;:2</code></pre>
+<p>To get any relevant results with <code>tsquery</code> you had to search with a block of code (like <code>k94210543</code>). But, a <code>lexeme</code> lost its meaning when used with machine generated identifier like texts. This approach even with the smartest tokenization, was quickly deemed unhelpful and had to be refactored for substring matching. Oh !! <code>LIKE</code>, I am coming for you.</p>
+<p>Before demeaning the <code>LIKE</code>, which now is a good friend of mine, let's understand its implementation. If you're a C whiz-kid, <a href="https://github.com/postgres/postgres/blob/master/src/backend/utils/adt/like_match.c">here's the relevant source code.</a></p>
+<h3 id="how-does-like-work">How does <code>LIKE</code> work?</h3>
+<p>Conceptually, PostgreSQL’s <code>LIKE</code> implementation scans the input string and pattern using separate pointers. Literal characters are compared directly, <code>_</code> advances by one character, and <code>%</code> triggers scanning and recursive attempts against the remaining pattern. My grandpa walked faster than this.</p>
+<p>With my then knowledge, I would have written something like,</p>
+<p><code>.... WHERE description like '%search_query%' </code></p>
+<p>So simple, woof, am I a genius? Dunning Kruger can whoop my ass, I assumed my seniors never thought of it.</p>
+<h2 id="stumbling-upon-pg_trgm-the-sauce">Stumbling upon <code>pg_trgm</code> (The sauce)</h2>
+<p><code>LIKE</code> was never the problem, the bottleneck was what came in and around it, quite literally, the <em>INPUTS</em>. With our previous query, the inputs were strings that had to be matched with two pointers approach, but what if we change the input as well as what it is matched against as well?</p>
+<p>Enter trigram, a group of three consecutive characters taken from a string. Here's an example:</p>
+<pre><code>select show_trgm(&#39;Chat, We cooked? Or Are we being cooked? AI is cooking? What is happending chat?&#39;);
 
 ---OUTPUT---
 
-{"  a","  b","  c","  h","  i","  o","  w"," ai"," ar"," be"," ch"," co"," ha"," is"," or"," we"," wh","ai ",app,are,"at ",bei,cha,coo,din,"ed ",ein,end,hap,hat,ing,"is ",ked,kin,ndi,"ng ",oke,oki,ook,"or ",pen,ppe,"re ","we ",wha}</code></pre>
-          <p>As evident, with faster searching comes nx storage requirement.</p>
-          <p>Guess, which operator trigrams support for text searching? No, don't skip ahead, take a moment, wait, take one more second, ummmmm, yup!! the old, cute <code>LIKE</code> operator. But, this time it came with trigram around it. Hold on, <code>LIKE</code> is not done yet, the comeback is stronger than the setbacks.</p>
-          <p>Now, I had a presentable strategy for the refactor, use <code>pg_trgm</code> with <code>GiST</code> index. Not much, but honest work. Anyways, with my trust-me-bro benchmark, I concluded 3GB of index for 15M rows to get substring matching in reasonable time was a no-brainer. So, I started bringing the refactor in the application layer, can't UAT with <code>explain analyze</code>, can we?</p>
-          <h2 id="the-climax-throwing-away-the-sauce">The climax (Throwing away the sauce)</h2>
-          <p>To get to this point, I had read enough PostgreSQL documentation and relevant articles to understand the internals of indexing. So, while bringing my refactor to the application layer, I (with great help of my senior) realized that all the queries to the table had filters that drastically decreased the scope of the search. For example, a transaction is always scoped to the source, type of it, so naturally only transactions from that scope was a relevant result for the user.</p>
-          <p>If you have tried devising an indexing strategy ever, you know this is a perfect opportunity for a B-Tree compound index to shine. My trust-me-bro benchmarks showed a 10x faster query results, with our newest, super-affordable index. Now coming back to our search, something weird started happening that I couldn't get my head around, the planner stopped using our trigram index.</p>
-          <p>I grew up in a household where shampoo bottles were refilled with water, so my heart shed a tear when my 3GB per 15M row index was deemed useless by the planner. Ouch!! still hurts.</p>
-          <p>The query planner, brought me back to square one, because it applied <code>B-tree</code> index scan and used <code>LIKE '%query%'</code> predicate as a filter over those candidate rows instead of using the trigram index. It did so because the estimated cost to</p>
-          <ul>
-            <li>first, scan the index,</li>
-            <li>then, combine on other predicates to filter,</li>
-            <li>after that, fetch those rows surpassed the benefit of faster lookup. In other words, the <code>B-tree</code> index didn't help for substring search but it could cheaply find the small set of rows matching other fields. After that, applying <code>LIKE</code> as a filter was cheap enough.</li>
-          </ul>
-          <p>Now, even without the trigram index, my <code>LIKE</code> backed search runs faster than my grandpa who is on a wheelchair with two rocket boosters, all because it has a strong <code>B-Tree</code> companion which does all the heavy lifting.</p>
-          <p>/Happy Engineering!!</p>
-          <pre><code>select count(id) from transactions;
-  count
----------
- 3515497</code></pre>
-          <pre><code>EXPLAIN ANALYZE
+{&quot;  a&quot;,&quot;  b&quot;,&quot;  c&quot;,&quot;  h&quot;,&quot;  i&quot;,&quot;  o&quot;,&quot;  w&quot;,&quot; ai&quot;,&quot; ar&quot;,&quot; be&quot;,&quot; ch&quot;,&quot; co&quot;,&quot; ha&quot;,&quot; is&quot;,&quot; or&quot;,&quot; we&quot;,&quot; wh&quot;,&quot;ai &quot;,app,are,&quot;at &quot;,bei,cha,coo,din,&quot;ed &quot;,ein,end,hap,hat,ing,&quot;is &quot;,ked,kin,ndi,&quot;ng &quot;,oke,oki,ook,&quot;or &quot;,pen,ppe,&quot;re &quot;,&quot;we &quot;,wha}</code></pre>
+<p>As evident, with faster searching comes <em>nx</em> storage requirement.</p>
+<p>Guess, which operator trigrams support for text searching? No, don't skip ahead, take a moment, wait, take one more second, ummmmm, yup!! the old, cute <code>LIKE</code> operator, a good friend of mine btw. But, this time it came with trigram around it. Hold on, my friend is not done yet, the comeback is stronger than the setbacks.</p>
+<p>Now, I had a presentable strategy for the refactor, use <code>pg_trgm</code> with <code>GiST</code> index. Not much, but honest work. Anyways, with my trust-me-bro benchmark, I concluded 3GB of index for 15M rows to get substring matching in reasonable time was a no-brainer. So, I started bringing the refactor in the application layer.</p>
+<h2 id="the-climax-throwing-away-the-sauce">The Climax (Throwing away the sauce)</h2>
+<p>To get to this point, I had read enough PostgreSQL documentation and relevant articles to understand the character of indexing. So, while bringing my refactor to the application layer, I (with great help of my senior) realized that all the queries to the table had filters that drastically decreased the scope of the search. For example, a transaction is always scoped to the source, type of it, so naturally only transactions from that scope was a relevant result for the user.</p>
+<p>If you have tried devising an indexing strategy ever, you know this is a perfect opportunity for a B-Tree composite index to shine. My trust-me-bro benchmarks showed a 10x faster query results, with our newest, super-affordable index, 500MB in the table where trigram index was consuming 10GB. Now, coming back to our search, something weird started happening that I couldn't get my head around, the planner stopped using our trigram index.</p>
+<p>I grew up in a household where shampoo bottles were refilled with water, so my heart shed a tear when my 10GB per partition row index was deemed useless by the planner. Ouch!! still hurts.</p>
+<p>The query planner, brought me back to square one, because it applied <code>B-tree</code> index scan and used <code>LIKE '%query%'</code> predicate as a filter over those candidate rows instead of using the trigram index. It did so because the estimated cost to</p>
+<ul>
+<li>first, scan the index,</li>
+<li>then, combine on other predicates to filter,</li>
+<li>after that, fetch those rows surpassed the benefit of faster lookup. In other words, the <code>B-tree</code> index didn't help for substring search but it could cheaply find the small set of rows matching other fields. After that, applying <code>LIKE</code> as a filter was cheap enough.</li>
+</ul>
+<p>A month passed, no complaints, no praises too but that's okay, until one day, I push through office door, a gust of wind whips my jacket. I narrow my eyes, start steps towards my seat, until a wave of breeze(internet) brings an envelope signed to Shashwat (a Slack message) steals my attention. A complaint, <code>the search has been performing poorly obstructing daily work.</code></p>
+<p>The plan was perfect, the stage was set for my engineering to shine, until another <code>EXPLAIN ANALYZE</code> query showed me my true colors. My trigram index didn't just come with storage constraints, it blew up the entire search function.</p>
+<p>Here's what happened, the PostgreSQL planner, which was actively avoiding the trigram index altogether was now deciding to load both indexes, and perform bitmap <code>AND</code> operation. For debugging purpose, I dropped the trigram index altogether and ran the search query. The performance boost was, urmmm, so much better, how much better? slightly, but by how much? <strong>65x better</strong>. Yes, same query, when powered with a trigram index had execution time of 1.5 MINUTES, was dropped to 1.5 seconds with NO index.</p>
+<p>Now, even without the trigram index, my <code>LIKE</code>, best friend btw, backed search runs faster than my grandpa who is on a wheelchair with two rocket boosters, all because it has a strong <code>B-Tree</code> companion which does all the heavy lifting.</p>
+<p>Below, I have dropped some stats for reference, If you believe, the strategy had obvious loopholes, or have suggestions for me. hmu at <a href="https://www.linkedin.com/in/shashwat-poudel/">LinkedIn</a>.</p>
+<pre><code>select
+  indexname as index_name,
+  pg_size_pretty(pg_relation_size(indexrelid)) as index_size
+from pg_stat_user_indexes
+where relname = &#39;transactions_YYYY_MM&#39;;
+
+                      index_name                       | index_size
+-------------------------------------------------------+------------
+ transactions_YYYY_MM_pkey                            | 2591 MB
+ transactions_YYYY_MM_scope_idx                       | 580 MB
+ transactions_YYYY_MM_searchable_idx                  | 10 GB
+ transactions_YYYY_MM_field_two_idx                   | 117 MB
+ transactions_YYYY_MM_field_one_idx                   | 125 MB
+ transactions_YYYY_MM_field_three_idx                 | 125 MB
+(6 rows)</code></pre>
+<h2 id="with-trigram-index">With Trigram Index</h2>
+<pre><code>EXPLAIN ANALYZE
 SELECT *
 FROM transactions
-WHERE field_one = 'SRC_R2_L1_P1'
-  AND field_two = 3
-  AND description LIKE '%' || '09976' || '%';
+WHERE txn_date = &#39;YYYY-MM-DD&#39;
+  AND source_id = &#39;SOURCE_NAME&#39;
+  AND data_type_id = 1
+  AND description ILIKE &#39;%SEARCH_QUERY%&#39;;
 
-  ---
-  .
-  .
-  .
-  Index Scan using transactions_2026_05_fields_idx on transactions_2026_05
-  .
-  .
+QUERY PLAN
+--------------------------------------------------------------------------------------------------------------------------------
+Bitmap Heap Scan on transactions_YYYY_MM transactions
+  (cost=2952.55..2976.07 rows=21 width=838)
+  (actual time=103132.213..103132.216 rows=1 loops=1)
 
+  Recheck Cond:
+    (
+      (description ~~* &#39;%SEARCH_QUERY%&#39;::text)
+      AND (data_type_id = 1)
+      AND ((source_id)::text = &#39;SOURCE_NAME&#39;::text)
+      AND (txn_date = &#39;YYYY-MM-DD&#39;::date)
+    )
 
- Planning Time: 1.207 ms
- Execution Time: 0.155 ms</code></pre>
+  Heap Blocks: exact=1
+
+  -&gt; BitmapAnd
+       (cost=2952.55..2952.55 rows=21 width=0)
+       (actual time=103132.179..103132.181 rows=0 loops=1)
+
+       -&gt; Bitmap Index Scan on transactions_YYYY_MM_searchable_idx
+            (cost=0.00..150.65 rows=5951 width=0)
+            (actual time=103095.044..103095.044 rows=4 loops=1)
+
+            Index Cond:
+              (description ~~* &#39;%SEARCH_QUERY%&#39;::text)
+
+       -&gt; Bitmap Index Scan on transactions_YYYY_MM_scope_idx
+            (cost=0.00..2801.64 rows=208070 width=0)
+            (actual time=36.741..36.741 rows=784149 loops=1)
+
+            Index Cond:
+              (
+                (data_type_id = 1)
+                AND ((source_id)::text = &#39;SOURCE_NAME&#39;::text)
+                AND (txn_date = &#39;YYYY-MM-DD&#39;::date)
+              )
+
+Planning Time: 0.444 ms
+Execution Time: 103132.762 ms</code></pre>
+<h4 id="dropping-the-trigram-index">Dropping the Trigram index.</h4>
+<pre><code>BEGIN;
+
+DROP INDEX ix_transactions_searchable_gist_trgm;
+
+EXPLAIN ANALYZE
+SELECT *
+FROM transactions
+WHERE txn_date = &#39;YYYY-MM-DD&#39;
+  AND source_id = &#39;SOURCE_NAME&#39;
+  AND data_type_id = 1
+  AND description ILIKE &#39;%SEARCH_QUERY%&#39;;
+
+QUERY PLAN
+--------------------------------------------------------------------------------------------------------------------------------
+Index Scan using transactions_YYYY_MM_scope_idx on transactions_YYYY_MM transactions
+  (cost=0.56..223266.20 rows=21 width=838)
+  (actual time=326.674..1579.087 rows=1 loops=1)
+
+  Index Cond:
+    (
+      (data_type_id = 1)
+      AND ((source_id)::text = &#39;SOURCE_NAME&#39;::text)
+      AND (txn_date = &#39;YYYY-MM-DD&#39;::date)
+    )
+
+  Filter:
+    (description ~~* &#39;%SEARCH_QUERY%&#39;::text)
+
+  Rows Removed by Filter: 784148
+
+Planning Time: 2.501 ms
+Execution Time: 1579.112 ms</code></pre>
+<ul>
+<li>The scoped B-tree index returned around <strong>784,149 candidate rows</strong>.</li>
+<li>The trigram index returned only <strong>4 candidate rows</strong>, but the trigram index scan itself took about <strong>103 seconds</strong>.</li>
+<li>PostgreSQL combined both indexes using <code>BitmapAnd</code>.</li>
+<li>Dropping the trigram index forced PostgreSQL into the simpler B-tree index scan.</li>
+<li>Filtering 784,148 rejected rows still took only about <strong>1.58 seconds</strong>, which was cheaper than touching the trigram index.</li>
+</ul>
+<p>/Happy Engineering!!</p>
         </div>
       </article>
     </main>
