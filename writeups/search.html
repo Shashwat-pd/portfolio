@@ -49,7 +49,7 @@
 );
 ---
 &#39;-050674899&#39;:4 &#39;-7175926&#39;:3 &#39;ctznnpka&#39;:5 &#39;psw&#39;:1 &#39;k94210543&#39;:6 &#39;upi&#39;:2</code></pre>
-<p>To get any relevant results with <code>tsquery</code> you had to search with a block of code (like <code>k94210543</code>). But, a <code>lexeme</code> lost its meaning when used with machine generated identifier like texts. This approach even with the smartest tokenization, was quickly deemed unhelpful and had to be refactored for substring matching. Oh !! <code>LIKE</code>, I am coming for you.</p>
+<p>To get any relevant results with <code>tsquery</code> you had to search with a block of code (like <code>k94210543</code>). But, a <code>lexeme</code> lost its meaning when used with random-identifier-like texts. This approach even with the smartest tokenization, was quickly deemed unhelpful and had to be refactored for substring matching. Oh !! <code>LIKE</code>, I am coming for you.</p>
 <p>Before demeaning the <code>LIKE</code>, which now is a good friend of mine, let's understand its implementation. If you're a C whiz-kid, <a href="https://github.com/postgres/postgres/blob/master/src/backend/utils/adt/like_match.c">here's the relevant source code.</a></p>
 <h3 id="how-does-like-work">How does <code>LIKE</code> work?</h3>
 <p>Conceptually, PostgreSQL’s <code>LIKE</code> implementation scans the input string and pattern using separate pointers. Literal characters are compared directly, <code>_</code> advances by one character, and <code>%</code> triggers scanning and recursive attempts against the remaining pattern. My grandpa walked faster than this.</p>
@@ -59,7 +59,7 @@
 <h2 id="stumbling-upon-pg_trgm-the-sauce">Stumbling upon <code>pg_trgm</code> (The sauce)</h2>
 <p><code>LIKE</code> was never the problem, the bottleneck was what came in and around it, quite literally, the <em>INPUTS</em>. With our previous query, the inputs were strings that had to be matched with two pointers approach, but what if we change the input as well as what it is matched against as well?</p>
 <p>Enter trigram, a group of three consecutive characters taken from a string. Here's an example:</p>
-<pre><code>select show_trgm(&#39;Chat, We cooked? Or Are we being cooked? AI is cooking? What is happending chat?&#39;);
+<pre><code>select show_trgm(&#39;Chat, We cooked? Or Are we being cooked? AI is cooking? What is happening chat?&#39;);
 
 ---OUTPUT---
 
