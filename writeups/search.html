@@ -41,14 +41,14 @@
 <li>Lexemes were normalized to merge different variants of the same word: <code>cooked</code> and <code>cooking</code> in this case.</li>
 <li>Stop words like <code>Or</code>, <code>Are</code>, <code>Is</code> were removed.</li>
 </ul>
-<p><code>tsvector</code> operator is a hugely celebrated feature for text search because with proper indexing, searching even in huge documents becomes sufficiently fast. If your users frequently look for the token 'shake' in Shakespeare's novels, then wohoo, there you go, but our users searched with substrings like <code>05067</code> in fields that looked like <code>PSW UPI-7175926-050674899-CTZNNPKA K94210543</code></p>
+<p><code>tsvector</code> operator is a hugely celebrated feature for text search because with proper indexing, searching even in huge documents becomes sufficiently fast. If your users frequently look for the token 'shake' in Shakespeare's novels, then wohoo, there you go, but our users searched with substrings like <code>05067</code> in fields that looked like <code>PSW RRI-7175926-050674899-NZNNPKA K94210543</code></p>
 <p>here's what <code>tsvector</code> provides for cases like this</p>
 <pre><code>SELECT to_tsvector(
   &#39;english&#39;,
-  &#39;PSW UPI-7175926-050674899-CTZNNPKA K94210543&#39;
+  &#39;PSW RRI-7175926-050674899-NZNNPKA K94210543&#39;
 );
 ---
-&#39;-050674899&#39;:4 &#39;-7175926&#39;:3 &#39;ctznnpka&#39;:5 &#39;psw&#39;:1 &#39;k94210543&#39;:6 &#39;upi&#39;:2</code></pre>
+&#39;-050674899&#39;:4 &#39;-7175926&#39;:3 &#39;nznnpka&#39;:5 &#39;psw&#39;:1 &#39;k94210543&#39;:6 &#39;rri&#39;:2</code></pre>
 <p>To get any relevant results with <code>tsquery</code> you had to search with a block of code (like <code>k94210543</code>). But, a <code>lexeme</code> lost its meaning when used with random-identifier-like texts. This approach even with the smartest tokenization, was quickly deemed unhelpful and had to be refactored for substring matching. Oh !! <code>LIKE</code>, I am coming for you.</p>
 <p>Before demeaning the <code>LIKE</code>, which now is a good friend of mine, let's understand its implementation. If you're a C whiz-kid, <a href="https://github.com/postgres/postgres/blob/master/src/backend/utils/adt/like_match.c">here's the relevant source code.</a></p>
 <h3 id="how-does-like-work">How does <code>LIKE</code> work?</h3>
