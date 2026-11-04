@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>
+    .bg{fill:#111} .s{fill:none;stroke:#fff} .cur{fill:#fff}
+    @media (prefers-color-scheme: dark){.bg{fill:#fff}.s{stroke:#111}.cur{fill:#111}}
+  </style>
+  <rect class="bg" width="32" height="32" rx="6"/>
+  <path class="s" d="M15.5 12.5C14.5 11.3 13.1 11 11.5 11C9 11 7.5 12.2 7.5 14C7.5 15.8 9.1 16.4 11.5 17C13.9 17.6 15.5 18.2 15.5 20C15.5 21.8 14 23 11.5 23C9.7 23 8.3 22.6 7 21.4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect class="cur" x="18.5" y="9.5" width="8" height="15" rx="0.5"/>
+</svg>
