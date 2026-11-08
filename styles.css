@@ -200,6 +200,8 @@ body {
   cursor: pointer;
 }
 .more-toggle:hover { text-decoration: underline; }
+a.more-toggle { display: inline-block; text-decoration: none; }
+a.more-toggle:hover { text-decoration: underline; }
 
 /* Spinning conic gradient support */
 @property --ang {
@@ -262,3 +264,33 @@ main > section + section { margin-top: 28px; }
 .article .content img { max-width: 100%; height: auto; display: block; }
 .article .content figure { margin: 14px 0; }
 .article .content figcaption { color: var(--muted); font-size: 0.8rem; margin-top: 6px; }
+
+/* Bookshelf */
+.shelf-legend { margin: 0 0 14px; color: var(--muted); font-size: 0.85rem; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.shelf-legend span { white-space: nowrap; }
+.shelf .item { display: flex; align-items: baseline; gap: 12px; }
+.shelf .author { color: var(--muted); }
+.shelf .item { gap: 8px; }
+.shelf .mark { order: 2; flex: none; font-size: 14px; }
+.mark { flex: 0 0 1.2em; text-align: center; color: var(--muted); }
+.mark.must { color: #b45309; }   /* ★ */
+.mark.try  { color: #0e7490; }   /* ◐ */
+.mark.skip { color: #b91c1c; }   /* ✕ */
+
+.book { display: grid; grid-template-columns: 200px 1fr; gap: 28px; align-items: start; margin-top: 18px; }
+.book .cover { margin: 0; position: sticky; top: 24px; }
+.book .cover img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 4px; }
+.book-meta { margin: -4px 0 10px; color: var(--muted); font-size: 1.05rem; }
+.book-author { color: var(--text); font-style: italic; }
+.book-verdict { margin: 0 0 4px; color: var(--muted); font-size: 0.9rem; }
+.book-verdict .mark { font-size: 14px; }
+.book .content { margin-top: 0; }
+.book .content p:first-child { margin-top: 0; }
+@media (max-width: 600px) {
+  .book { grid-template-columns: 1fr; gap: 18px; }
+  .book .cover { max-width: 180px; position: static; }
+}
+.list li span.item { padding: 10px 0; }  /* shelf rows without a review page */
+.shelf-intro { color: var(--muted); font-size: 0.9rem; margin: 0 0 18px; }
+.shelf-intro p { margin: 8px 0; }
+.shelf-intro a { color: var(--text); text-decoration: underline; }
