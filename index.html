@@ -44,53 +44,6 @@
       </header>
 
       <section>
-        <h2 class="section-title">Projects</h2>
-        <ul id="projectsList" class="list collapsed">
-          <li>
-            <a href="https://github.com/Shashwat-pd/server" class="item"
-              ><span class="mono">HTTP Server</span> — spins up a raw TCP
-              listener</a
-            >
-          </li>
-          <li>
-            <a
-              href="https://github.com/Shashwat-pd/agentic-extension"
-              class="item"
-              ><span class="mono">Agentic Extension</span> — Wtf is an Agent
-              anyway?</a
-            >
-          </li>
-          <li>
-            <a
-              href="https://github.com/Shashwat-pd/inventory-managment"
-              class="item"
-              ><span class="mono">Sales Forecasting Model</span> — ARIMA / STL
-              implementation for sales forecasting.</a
-            >
-          </li>
-          <li class="more">
-            <a href="https://github.com/Shashwat-pd/photobooth" class="item"
-              ><span class="mono">Photobooth</span> — Intimate date when tight
-              on budget</a
-            >
-          </li>
-          <li class="more">
-            <a href="#" class="item"
-              ><span class="mono">Gator</span> —TypeScript CLI for collecting,
-              following, and periodically aggregating RSS feeds.</a
-            >
-          </li>
-        </ul>
-        <button
-          class="more-toggle"
-          data-target="projectsList"
-          aria-expanded="false"
-        >
-          View more
-        </button>
-      </section>
-
-      <section>
         <h2 class="section-title">
           Writeups
           <button type="button" class="info" title="Legend">ℹ️</button>
@@ -99,10 +52,8 @@
         <ul id="writeupsList" class="list writeups collapsed">
           <li>
             <a href="writeups/search.html" class="item tech"
-              ><span class="mono"
-                     >Searching "Private Ryan",</span> — LIKE, pg_trgm, and B-tree
-                tradeoffs
-              </a
+              ><span class="mono">Substring search over 80M rows</span> — LIKE,
+              pg_trgm, and B-tree tradeoffs in Postgres</a
             >
           </li>
           <li>
@@ -132,8 +83,9 @@
               ><span class="mono">Post title five</span> — short blurb</a
             >
           </li>
+          -->
         </ul>
-
+        <!--
         <button
           class="more-toggle"
           data-target="writeupsList"
@@ -142,6 +94,34 @@
           View more
         </button>
         -->
+      </section>
+
+      <section>
+        <h2 class="section-title">Projects</h2>
+        <ul id="projectsList" class="list">
+          <li>
+            <a href="https://github.com/Shashwat-pd/server" class="item"
+              ><span class="mono">HTTP Server</span> — HTTP/1.1 parser over raw
+              TCP sockets, zero dependencies</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://github.com/Shashwat-pd/fuel-optimisation"
+              class="item"
+              ><span class="mono">Fuel Stop Planner</span> — cheapest fuel stops
+              along a US road trip</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://github.com/Shashwat-pd/inventory-managment"
+              class="item"
+              ><span class="mono">Sales Forecasting Model</span> — ARIMA / STL
+              implementation for sales forecasting.</a
+            >
+          </li>
+        </ul>
       </section>
 
       <section>
